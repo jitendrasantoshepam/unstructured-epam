@@ -211,7 +211,7 @@ class EmbeddingConfig(BaseConfig):
                 HuggingFaceEmbeddingConfig,
                 HuggingFaceEmbeddingEncoder,
             )
-
+            del kwargs["api_key"]
             return HuggingFaceEmbeddingEncoder(config=HuggingFaceEmbeddingConfig(**kwargs))
         elif self.provider == "octoai":
             from unstructured.embed.octoai import OctoAiEmbeddingConfig, OctoAIEmbeddingEncoder
