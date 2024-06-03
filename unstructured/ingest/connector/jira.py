@@ -90,6 +90,7 @@ class SimpleJiraConfig(ConfigSessionHandleMixin, BaseConnectorConfig):
     projects: t.Optional[t.List[str]] = None
     boards: t.Optional[t.List[str]] = None
     issues: t.Optional[t.List[str]] = None
+    custom_fields: t.Optional[t.List[dict]] = None
 
     def create_session_handle(
         self,
@@ -137,9 +138,10 @@ class FieldGetter(dict):
         return value
 
 
-def form_templated_string(issue, parsed_fields, c_sep="|||", r_sep="\n\n\n"):
+def form_templated_string(issue, parsed_fields, custom_fields, c_sep="|||", r_sep="\n\n\n"):
     """Forms a template string via parsing the fields from the API response object on the issue
     The template string will be saved to the disk, and then will be processed by partition."""
+    custom_fields_str = _get_custom_fields_for_issue(parsed_fields, custom_fields, c_sep, r_sep)
     return r_sep.join(
         [
             _get_id_fields_for_issue(issue),
@@ -148,8 +150,18 @@ def form_templated_string(issue, parsed_fields, c_sep="|||", r_sep="\n\n\n"):
             _get_subtasks_for_issue(parsed_fields),
             _get_comments_for_issue(parsed_fields),
             _get_text_fields_for_issue(parsed_fields),
+            custom_fields_str,
         ],
     )
+
+def _get_custom_fields_for_issue(parsed_fields, custom_fields, c_sep="|||", r_sep="\n\n\n"):
+    custom_fields_str = []
+    for field in custom_fields:
+        key = field.get("key")
+        value = field.get("value")
+        if key in parsed_fields:
+            custom_fields_str.append(f"{value}:{parsed_fields[key]}{r_sep}")
+    return "".join(custom_fields_str)
 
 
 DEFAULT_C_SEP = " " * 5
@@ -334,7 +346,9 @@ class JiraIngestDoc(IngestDocSessionHandleMixin, IngestDocCleanupMixin, BaseSing
     @requires_dependencies(["atlassian"], extras="jira")
     @BaseSingleIngestDoc.skip_if_file_exists
     def get_file(self):
-        document = form_templated_string(self.issue, self.parsed_fields)
+        document = form_templated_string(
+            self.issue, self.parsed_fields, self.connector_config.custom_fields
+        )
         self.update_source_metadata()
         self.filename.parent.mkdir(parents=True, exist_ok=True)
 
