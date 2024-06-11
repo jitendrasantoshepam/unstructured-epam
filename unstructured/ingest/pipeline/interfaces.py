@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import logging
 import multiprocessing as mp
 import typing as t
@@ -25,12 +26,66 @@ from unstructured.ingest.logger import ingest_log_streaming_init, logger
 
 
 @dataclass
+class NodeStatus:
+    total_items: int = 0
+    processed_items: int = 0
+
+
+@dataclass
+class ProgressStatus:
+    nodes: dict[str, NodeStatus] = field(
+        default_factory=lambda: {
+            "Reader": NodeStatus(),
+            "Partitioner": NodeStatus(),
+            "Chunker": NodeStatus(),
+            "Embedder": NodeStatus(),
+            "Copier": NodeStatus(),
+        }
+    )
+    overall: NodeStatus = NodeStatus()
+
+
+@dataclass
+class ProgressTracker:
+    status_dir: str
+    status_file: str = field(init=False)
+    status: ProgressStatus = field(default_factory=ProgressStatus)
+
+    def __post_init__(self):
+        self.status_file = os.path.join(self.status_dir, "status.json")
+        self._write_status()
+
+    def _write_status(self):
+        if not os.path.exists(self.status_dir):
+            os.makedirs(self.status_dir)
+        with open(self.status_file, "w") as f:
+            json.dump(self.status, f, default=lambda o: o.__dict__, indent=4)
+
+    def update_node_status(self, node_name: str, total_items: int, processed_items: int):
+        if node_name not in self.status.nodes:
+            self.status.nodes[node_name] = NodeStatus()
+        self.status.nodes[node_name].total_items = total_items
+        self.status.nodes[node_name].processed_items = processed_items
+        self._update_overall_status()
+        self._write_status()
+
+    def _update_overall_status(self):
+        total_items = sum(node.total_items for node in self.status.nodes.values())
+        processed_items = sum(node.processed_items for node in self.status.nodes.values())
+        self.status.overall.total_items = total_items
+        self.status.overall.processed_items = processed_items
+
+
+@dataclass
 class PipelineContext(ProcessorConfig):
     """
     Data that gets shared across each pipeline node
     """
 
+    progress_tracker: ProgressTracker = field(init=False, repr=False, compare=False)
+
     def __post_init__(self):
+        self.progress_tracker: ProgressTracker = ProgressTracker(self.status_dir)
         self._ingest_docs_map: t.Optional[DictProxy] = None
 
     @property
@@ -44,40 +99,66 @@ class PipelineContext(ProcessorConfig):
         self._ingest_docs_map = value
 
 
+# Base class for pipeline nodes with progress tracking
 @dataclass
 class PipelineNode(DataClassJsonMixin, ABC):
-    """
-    Class that encapsulates logic to run during a single pipeline step
-    """
-
     pipeline_context: PipelineContext
 
     def __call__(self, iterable: t.Optional[t.Iterable[t.Any]] = None) -> t.Any:
         iterable = iterable if iterable else []
+        total_items = len(iterable)
+        processed_items = 0
+
         if iterable:
-            logger.info(
-                f"Calling {self.__class__.__name__} " f"with {len(iterable)} docs",  # type: ignore
-            )
+            logger.info(f"Calling {self.__class__.__name__} with {total_items} docs")
 
         self.initialize()
         if not self.supported_multiprocessing():
             if iterable:
-                self.result = self.run(iterable)
+                results = []
+                self.pipeline_context.progress_tracker.update_node_status(
+                    self.__class__.__name__, len(iterable), 0
+                )
+                for item in iterable:
+                    result = self.run(item)
+                    processed_items += 1
+                    self.pipeline_context.progress_tracker.update_node_status(
+                        self.__class__.__name__, total_items, processed_items
+                    )
+                    results.append(result)
+                self.result = results
             else:
                 self.result = self.run()
         elif self.pipeline_context.num_processes == 1:
-            if iterable:
-                self.result = [self.run(it) for it in iterable]
-            else:
-                self.result = self.run()
+            self.pipeline_context.progress_tracker.update_node_status(
+                self.__class__.__name__, len(iterable), 0
+            )
+            results = [self.run(it) for it in iterable]
+            self.result = []
+            for result in results:
+                processed_items += 1
+                self.pipeline_context.progress_tracker.update_node_status(
+                    self.__class__.__name__, total_items, processed_items
+                )
+                self.result.append(result)
         else:
             with mp.Pool(
                 processes=self.pipeline_context.num_processes,
                 initializer=ingest_log_streaming_init,
                 initargs=(logging.DEBUG if self.pipeline_context.verbose else logging.INFO,),
             ) as pool:
-                self.result = pool.map(self.run, iterable)
-        # Remove None which may be caused by failed docs that didn't raise an error
+                self.pipeline_context.progress_tracker.update_node_status(
+                    self.__class__.__name__, len(iterable), 0
+                )
+                results = pool.map(self.run, iterable)
+                self.result = []
+                for result in results:
+                    processed_items += 1
+                    self.pipeline_context.progress_tracker.update_node_status(
+                        self.__class__.__name__, total_items, processed_items
+                    )
+                    self.result.append(result)
+
         if isinstance(self.result, t.Iterable):
             self.result = [r for r in self.result if r is not None]
         return self.result

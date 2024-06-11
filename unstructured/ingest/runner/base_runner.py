@@ -86,4 +86,5 @@ class Runner(EnhancedDataClassJsonMixin, ABC):
             chunking_config=self.chunking_config,
             permissions_config=self.get_permissions_config(),
             retry_strategy_config=self.retry_strategy_config,
+            status_directory = self.processor_config.status_dir
         )

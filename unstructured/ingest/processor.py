@@ -35,6 +35,7 @@ def process_documents(
     processor_config: ProcessorConfig,
     source_doc_connector: BaseSourceConnector,
     partition_config: PartitionConfig,
+    status_directory: str,
     dest_doc_connector: Optional[BaseDestinationConnector] = None,
     chunking_config: Optional[ChunkingConfig] = None,
     embedder_config: Optional[EmbeddingConfig] = None,
@@ -89,5 +90,6 @@ def process_documents(
         reformat_nodes=reformat_nodes,
         write_node=writer,
         permissions_node=permissions_data_cleaner,
+        status_directory = status_directory
     )
     pipeline.run()

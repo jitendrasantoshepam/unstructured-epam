@@ -2,7 +2,8 @@ import logging
 import multiprocessing as mp
 from dataclasses import dataclass, field
 from typing import Any, Optional
-
+import os
+import json
 from dataclasses_json import DataClassJsonMixin
 
 from unstructured.ingest.connector.registry import create_ingest_doc_from_dict
@@ -30,9 +31,18 @@ class Pipeline(DataClassJsonMixin):
     write_node: Optional[WriteNode] = None
     reformat_nodes: "list[ReformatNode]" = field(default_factory=list)
     permissions_node: Optional[PermissionsDataCleaner] = None
+    status_directory: str = "runner_status"
 
     def initialize(self):
         ingest_log_streaming_init(logging.DEBUG if self.pipeline_context.verbose else logging.INFO)
+        self.update_status(False)
+
+    def update_status(self, running: bool, msg: str = ""):
+        if not os.path.exists(self.status_directory):
+            os.makedirs(self.status_directory)
+        file_path = os.path.join(self.status_directory, "running.json")
+        with open(file_path, "w") as status_file:
+            json.dump({"running": running, "msg": msg}, status_file, indent=4)
 
     def get_nodes_str(self):
         nodes = [self.doc_factory_node, self.source_node, self.partition_node]
@@ -63,13 +73,16 @@ class Pipeline(DataClassJsonMixin):
             f"with config: {self.pipeline_context.to_json()}",
         )
         self.initialize()
+        self.update_status(True, msg="running pipeline")
         manager = mp.Manager()
         self.pipeline_context.ingest_docs_map = manager.dict()
         # -- Get the documents to be processed --
         dict_docs = self.doc_factory_node()
         dict_docs = [manager.dict(d) for d in dict_docs]
         if not dict_docs:
-            logger.info("no docs found to process")
+            msg = "no docs found to process"
+            logger.info(msg)
+            self.update_status(False, msg=msg)
             return
         logger.info(
             f"processing {len(dict_docs)} docs via "
@@ -79,10 +92,14 @@ class Pipeline(DataClassJsonMixin):
             self.pipeline_context.ingest_docs_map[get_ingest_doc_hash(doc)] = doc
         fetched_filenames = self.source_node(iterable=dict_docs)
         if self.source_node.read_config.download_only:
-            logger.info("stopping pipeline after downloading files")
+            msg = "stopping pipeline after downloading files"
+            logger.info(msg)
+            self.update_status(False, msg=msg)
             return
         if not fetched_filenames:
-            logger.info("No files to run partition over")
+            msg = "No files to run partition over"
+            logger.info(msg)
+            self.update_status(False, msg=msg)
             return
         # -- To support batches ingest docs, expand those into the populated single ingest
         # -- docs after downloading content
@@ -91,12 +108,16 @@ class Pipeline(DataClassJsonMixin):
             raise ValueError("partition node not set")
         partitioned_jsons = self.partition_node(iterable=dict_docs)
         if not partitioned_jsons:
-            logger.info("No files to process after partitioning")
+            msg = "No files to process after partitioning"
+            logger.info(msg)
+            self.update_status(False, msg=msg)
             return
         for reformat_node in self.reformat_nodes:
             reformatted_jsons = reformat_node(iterable=partitioned_jsons)
             if not reformatted_jsons:
-                logger.info(f"No files to process after {reformat_node.__class__.__name__}")
+                msg = f"No files to process after {reformat_node.__class__.__name__}"
+                logger.info(msg)
+                self.update_status(False, msg=msg)
                 return
             partitioned_jsons = reformatted_jsons
 
@@ -104,6 +125,7 @@ class Pipeline(DataClassJsonMixin):
         copier = Copier(
             pipeline_context=self.pipeline_context,
         )
+
         copier(iterable=partitioned_jsons)
 
         if self.write_node:
@@ -115,3 +137,5 @@ class Pipeline(DataClassJsonMixin):
 
         if self.permissions_node:
             self.permissions_node.cleanup_permissions()
+
+        self.update_status(False, "completed")

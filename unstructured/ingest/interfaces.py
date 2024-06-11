@@ -110,6 +110,7 @@ class ProcessorConfig(BaseConfig):
     verbose: bool = False
     work_dir: str = str((Path.home() / ".cache" / "unstructured" / "ingest" / "pipeline").resolve())
     output_dir: str = "structured-output"
+    status_dir: str = "runner_status"
     num_processes: int = 2
     raise_on_error: bool = False
 
