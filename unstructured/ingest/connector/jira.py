@@ -33,7 +33,7 @@ class JiraSessionHandle(BaseSessionHandle):
 
 
 @requires_dependencies(["atlassian"], extras="jira")
-def create_jira_object(url, user_email, api_token):
+def create_jira_object(url, user_email, api_token, isCloud):
     """
     Creates a jira object for interacting with Jira Cloud.
     Args:
@@ -46,11 +46,18 @@ def create_jira_object(url, user_email, api_token):
     """
     from atlassian import Jira
 
-    jira = Jira(
-        url,
-        username=user_email,
-        password=api_token,
-    )
+    if isCloud:
+        jira = Jira(
+            url,
+            username=user_email,
+            password=api_token,
+        )
+    else:
+        jira = Jira(
+            url,
+            username=user_email,
+            token=api_token,
+        )
 
     response = jira.get_permissions("BROWSE_PROJECTS")
     permitted = response["permissions"]["BROWSE_PROJECTS"]["havePermission"]
@@ -86,6 +93,7 @@ class SimpleJiraConfig(ConfigSessionHandleMixin, BaseConnectorConfig):
 
     user_email: str
     access_config: JiraAccessConfig
+    isCloud: bool
     url: str
     projects: t.Optional[t.List[str]] = None
     boards: t.Optional[t.List[str]] = None
@@ -96,7 +104,10 @@ class SimpleJiraConfig(ConfigSessionHandleMixin, BaseConnectorConfig):
         self,
     ) -> JiraSessionHandle:
         service = create_jira_object(
-            url=self.url, user_email=self.user_email, api_token=self.access_config.api_token
+            url=self.url,
+            user_email=self.user_email,
+            api_token=self.access_config.api_token,
+            isCloud=self.isCloud,
         )
         return JiraSessionHandle(service=service)
 
@@ -153,6 +164,7 @@ def form_templated_string(issue, parsed_fields, custom_fields, c_sep="|||", r_se
             custom_fields_str,
         ],
     )
+
 
 def _get_custom_fields_for_issue(parsed_fields, custom_fields, c_sep="|||", r_sep="\n\n\n"):
     custom_fields_str = []
