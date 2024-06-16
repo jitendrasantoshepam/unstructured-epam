@@ -33,17 +33,15 @@ class NodeStatus:
 
 @dataclass
 class ProgressStatus:
-    nodes: dict[str, NodeStatus] = field(
-        default_factory=lambda: {
-            "Reader": NodeStatus(),
-            "Partitioner": NodeStatus(),
-            "Chunker": NodeStatus(),
-            "Embedder": NodeStatus(),
-            "Copier": NodeStatus(),
-            "Writer": NodeStatus(),
-        }
-    )
-    overall: NodeStatus = NodeStatus()
+    nodes: t.Dict[str, NodeStatus] = field(default_factory=lambda: {
+        "Reader": NodeStatus(),
+        "Partitioner": NodeStatus(),
+        "Chunker": NodeStatus(),
+        "Embedder": NodeStatus(),
+        "Copier": NodeStatus(),
+        "Writer": NodeStatus(),
+    })
+    overall: NodeStatus = field(default_factory=NodeStatus)
 
 
 @dataclass
