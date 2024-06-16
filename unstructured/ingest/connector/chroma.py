@@ -151,6 +151,8 @@ class ChromaDestinationConnector(BaseDestinationConnector):
         element_id = element_dict.get("element_id", str(uuid.uuid4()))
         return {
             "id": element_id,
+            "timestamp": element_dict.pop("timestamp"),
+            "jobId": element_dict.pop("jobId"),
             "embedding": element_dict.pop("embeddings", None),
             "document": element_dict.pop("text", None),
             "metadata": flatten_dict(

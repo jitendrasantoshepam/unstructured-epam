@@ -71,6 +71,10 @@ class Chunker(ReformatNode):
             assign_and_map_hash_ids(chunked_elements)
 
             element_dicts = elements_to_dicts(chunked_elements)
+            for ele in element_dicts:
+                ele["timestamp"] = self.pipeline_context.timestamp
+                ele["jobId"] = self.pipeline_context.jobId
+
             with open(json_path, "w", encoding="utf8") as output_f:
                 logger.info(f"writing chunking content to {json_path}")
                 json.dump(element_dicts, output_f, ensure_ascii=False, indent=2)

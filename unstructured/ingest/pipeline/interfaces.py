@@ -40,6 +40,7 @@ class ProgressStatus:
             "Chunker": NodeStatus(),
             "Embedder": NodeStatus(),
             "Copier": NodeStatus(),
+            "Writer": NodeStatus(),
         }
     )
     overall: NodeStatus = NodeStatus()
@@ -120,7 +121,7 @@ class PipelineNode(DataClassJsonMixin, ABC):
                     self.__class__.__name__, len(iterable), 0
                 )
                 for item in iterable:
-                    result = self.run(item)
+                    result = self.run([item])
                     processed_items += 1
                     self.pipeline_context.progress_tracker.update_node_status(
                         self.__class__.__name__, total_items, processed_items

@@ -131,6 +131,8 @@ class PineconeDestinationConnector(IngestDocSessionHandleMixin, BaseDestinationC
             "values": element_dict.pop("embeddings", None),
             "metadata": {
                 "text": element_dict.pop("text", None),
+                "timestamp": element_dict.pop("timestamp"),
+                "jobId": element_dict.pop("jobId"),
                 "element_serialized": json.dumps(element_dict),
                 **flatten_dict(
                     element_dict,

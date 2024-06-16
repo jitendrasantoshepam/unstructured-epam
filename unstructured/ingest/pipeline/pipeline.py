@@ -1,6 +1,7 @@
 import logging
 import multiprocessing as mp
 from dataclasses import dataclass, field
+import shutil
 from typing import Any, Optional
 import os
 import json
@@ -31,18 +32,32 @@ class Pipeline(DataClassJsonMixin):
     write_node: Optional[WriteNode] = None
     reformat_nodes: "list[ReformatNode]" = field(default_factory=list)
     permissions_node: Optional[PermissionsDataCleaner] = None
-    status_directory: str = "runner_status"
 
     def initialize(self):
         ingest_log_streaming_init(logging.DEBUG if self.pipeline_context.verbose else logging.INFO)
+        if os.path.isdir(f"./{self.pipeline_context.output_dir}"):
+            shutil.rmtree(f"./{self.pipeline_context.output_dir}")
+        if os.path.isdir(f"./{self.pipeline_context.status_dir}"):
+            shutil.rmtree(f"./{self.pipeline_context.status_dir}")
+        if self.pipeline_context.clean and os.path.isdir(self.pipeline_context.main_work_dir):
+            shutil.rmtree(self.pipeline_context.main_work_dir)
         self.update_status(False)
 
     def update_status(self, running: bool, msg: str = ""):
-        if not os.path.exists(self.status_directory):
-            os.makedirs(self.status_directory)
-        file_path = os.path.join(self.status_directory, "running.json")
+        if not os.path.exists(self.pipeline_context.status_dir):
+            os.makedirs(self.pipeline_context.status_dir)
+        file_path = os.path.join(self.pipeline_context.status_dir, "running.json")
         with open(file_path, "w") as status_file:
-            json.dump({"running": running, "msg": msg}, status_file, indent=4)
+            json.dump(
+                {
+                    "jobId": self.pipeline_context.jobId,
+                    "timestamp": self.pipeline_context.timestamp,
+                    "running": running,
+                    "msg": msg,
+                },
+                status_file,
+                indent=4,
+            )
 
     def get_nodes_str(self):
         nodes = [self.doc_factory_node, self.source_node, self.partition_node]

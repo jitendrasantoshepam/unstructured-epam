@@ -106,6 +106,8 @@ class PartitionConfig(BaseConfig):
 
 @dataclass
 class ProcessorConfig(BaseConfig):
+    timestamp: str
+    jobId: str
     reprocess: bool = False
     verbose: bool = False
     work_dir: str = str((Path.home() / ".cache" / "unstructured" / "ingest" / "pipeline").resolve())
@@ -113,6 +115,8 @@ class ProcessorConfig(BaseConfig):
     status_dir: str = "runner_status"
     num_processes: int = 2
     raise_on_error: bool = False
+    main_work_dir: str = str((Path.home() / ".cache" / "unstructured").resolve())
+    clean: bool = False
 
 
 @dataclass

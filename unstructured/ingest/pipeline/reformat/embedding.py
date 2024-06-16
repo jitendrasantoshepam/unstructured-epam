@@ -51,6 +51,9 @@ class Embedder(ReformatNode):
             embedder = self.embedder_config.get_embedder()
             embedded_elements = embedder.embed_documents(elements=elements)
             element_dicts = elements_to_dicts(embedded_elements)
+            for ele in element_dicts:
+                ele["timestamp"] = self.pipeline_context.timestamp
+                ele["jobId"] = self.pipeline_context.jobId
             with open(json_path, "w", encoding="utf8") as output_f:
                 logger.info(f"writing embeddings content to {json_path}")
                 json.dump(element_dicts, output_f, ensure_ascii=False, indent=2)

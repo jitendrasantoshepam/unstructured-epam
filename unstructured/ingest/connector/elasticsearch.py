@@ -386,6 +386,8 @@ class ElasticsearchDestinationConnector(BaseDestinationConnector):
             "_id": str(uuid.uuid4()),
             "_source": {
                 "element_id": element_dict.pop("element_id", None),
+                "timestamp": element_dict.pop("timestamp"),
+                "jobId": element_dict.pop("jobId"),
                 "embeddings": element_dict.pop("embeddings", None),
                 "text": element_dict.pop("text", None),
                 "type": element_dict.pop("type", None),

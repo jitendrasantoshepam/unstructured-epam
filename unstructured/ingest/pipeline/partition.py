@@ -49,6 +49,9 @@ class Partitioner(PartitionNode):
                 partition_config=self.partition_config,
                 **partition_kwargs,
             )
+            for ele in elements:
+                ele["timestamp"] = self.pipeline_context.timestamp
+                ele["jobId"] = self.pipeline_context.jobId
             with open(json_path, "w", encoding="utf8") as output_f:
                 logger.info(f"writing partitioned content to {json_path}")
                 json.dump(elements, output_f, ensure_ascii=False, indent=2, sort_keys=True)

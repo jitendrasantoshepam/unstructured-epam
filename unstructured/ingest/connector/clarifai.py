@@ -79,6 +79,8 @@ class ClarifaiDestinationConnector(BaseDestinationConnector):
         return {
             "input_id": str(uuid.uuid4().hex),
             "text": element_dict.pop("text", None),
+            "timestamp": element_dict.pop("timestamp"),
+            "jobId": element_dict.pop("jobId"),
             "metadata": {
                 **flatten_dict(
                     element_dict,
