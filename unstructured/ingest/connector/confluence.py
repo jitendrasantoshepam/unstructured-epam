@@ -43,9 +43,11 @@ class SimpleConfluenceConfig(BaseConnectorConfig):
     user_email: str
     access_config: ConfluenceAccessConfig
     url: str
+    isCloud: bool
     max_num_of_spaces: int = 500
     max_num_of_docs_from_each_space: int = 100
     spaces: t.List[str] = field(default_factory=list)
+    pages: t.Optional[t.List[str]] = None
 
 
 @dataclass
