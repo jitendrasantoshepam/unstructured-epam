@@ -4,54 +4,55 @@
 #
 #    pip-compile ./ingest/box.in
 #
-attrs==23.2.0
+attrs==24.2.0
     # via boxsdk
 boxfs==0.3.0
     # via -r ./ingest/box.in
-boxsdk[jwt]==3.10.0
+boxsdk[jwt]==3.13.0
     # via boxfs
-certifi==2024.2.2
+certifi==2024.7.4
     # via
     #   -c ./ingest/../base.txt
     #   -c ./ingest/../deps/constraints.txt
     #   requests
-cffi==1.16.0
+cffi==1.17.0
     # via cryptography
 charset-normalizer==3.3.2
     # via
     #   -c ./ingest/../base.txt
     #   requests
-cryptography==42.0.7
+cryptography==43.0.0
     # via boxsdk
-fsspec==2024.5.0
+fsspec==2024.6.1
     # via
-    #   -c ./ingest/../deps/constraints.txt
     #   -r ./ingest/box.in
     #   boxfs
-idna==3.7
+idna==3.8
     # via
     #   -c ./ingest/../base.txt
     #   requests
 pycparser==2.22
     # via cffi
-pyjwt==2.8.0
+pyjwt==2.9.0
     # via boxsdk
 python-dateutil==2.9.0.post0
     # via
     #   -c ./ingest/../base.txt
     #   boxsdk
-requests==2.32.2
+requests==2.32.3
     # via
     #   -c ./ingest/../base.txt
     #   boxsdk
     #   requests-toolbelt
 requests-toolbelt==1.0.0
-    # via boxsdk
+    # via
+    #   -c ./ingest/../base.txt
+    #   boxsdk
 six==1.16.0
     # via
     #   -c ./ingest/../base.txt
     #   python-dateutil
-urllib3==1.26.18
+urllib3==1.26.19
     # via
     #   -c ./ingest/../base.txt
     #   -c ./ingest/../deps/constraints.txt

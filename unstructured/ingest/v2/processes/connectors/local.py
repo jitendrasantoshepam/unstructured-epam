@@ -8,8 +8,11 @@ from typing import Any, Generator, Optional
 
 from unstructured.documents.elements import DataSourceMetadata
 from unstructured.ingest.v2.interfaces import (
+    AccessConfig,
+    ConnectionConfig,
     Downloader,
     DownloaderConfig,
+    DownloadResponse,
     FileData,
     Indexer,
     IndexerConfig,
@@ -22,11 +25,19 @@ from unstructured.ingest.v2.logger import logger
 from unstructured.ingest.v2.processes.connector_registry import (
     DestinationRegistryEntry,
     SourceRegistryEntry,
-    add_destination_entry,
-    add_source_entry,
 )
 
 CONNECTOR_TYPE = "local"
+
+
+@dataclass
+class LocalAccessConfig(AccessConfig):
+    pass
+
+
+@dataclass
+class LocalConnectionConfig(ConnectionConfig):
+    access_config: LocalAccessConfig = field(default_factory=lambda: LocalAccessConfig())
 
 
 @dataclass
@@ -43,6 +54,9 @@ class LocalIndexerConfig(IndexerConfig):
 @dataclass
 class LocalIndexer(Indexer):
     index_config: LocalIndexerConfig
+    connection_config: LocalConnectionConfig = field(
+        default_factory=lambda: LocalConnectionConfig()
+    )
     connector_type: str = CONNECTOR_TYPE
 
     def list_files(self) -> list[Path]:
@@ -115,13 +129,18 @@ class LocalDownloaderConfig(DownloaderConfig):
 @dataclass
 class LocalDownloader(Downloader):
     connector_type: str = CONNECTOR_TYPE
-    download_config: Optional[LocalDownloaderConfig] = None
+    connection_config: LocalConnectionConfig = field(
+        default_factory=lambda: LocalConnectionConfig()
+    )
+    download_config: LocalDownloaderConfig = field(default_factory=lambda: LocalDownloaderConfig())
 
     def get_download_path(self, file_data: FileData) -> Path:
         return Path(file_data.source_identifiers.fullpath)
 
-    def run(self, file_data: FileData, **kwargs: Any) -> Path:
-        return Path(file_data.source_identifiers.fullpath)
+    def run(self, file_data: FileData, **kwargs: Any) -> DownloadResponse:
+        return DownloadResponse(
+            file_data=file_data, path=Path(file_data.source_identifiers.fullpath)
+        )
 
 
 @dataclass
@@ -139,7 +158,11 @@ class LocalUploaderConfig(UploaderConfig):
 
 @dataclass
 class LocalUploader(Uploader):
-    upload_config: LocalUploaderConfig = field(default_factory=LocalUploaderConfig)
+    connector_type: str = CONNECTOR_TYPE
+    upload_config: LocalUploaderConfig = field(default_factory=lambda: LocalUploaderConfig())
+    connection_config: LocalConnectionConfig = field(
+        default_factory=lambda: LocalConnectionConfig()
+    )
 
     def is_async(self) -> bool:
         return False
@@ -147,25 +170,34 @@ class LocalUploader(Uploader):
     def run(self, contents: list[UploadContent], **kwargs: Any) -> None:
         self.upload_config.output_path.mkdir(parents=True, exist_ok=True)
         for content in contents:
-            identifiers = content.file_data.source_identifiers
-            new_path = self.upload_config.output_path / identifiers.relative_path
-            final_path = str(new_path).replace(identifiers.filename, f"{identifiers.filename}.json")
+            if source_identifiers := content.file_data.source_identifiers:
+                identifiers = source_identifiers
+                rel_path = (
+                    identifiers.relative_path[1:]
+                    if identifiers.relative_path.startswith("/")
+                    else identifiers.relative_path
+                )
+                new_path = self.upload_config.output_path / Path(rel_path)
+                final_path = str(new_path).replace(
+                    identifiers.filename, f"{identifiers.filename}.json"
+                )
+            else:
+                final_path = self.upload_config.output_path / Path(
+                    f"{content.file_data.identifier}.json"
+                )
             Path(final_path).parent.mkdir(parents=True, exist_ok=True)
             logger.debug(f"copying file from {content.path} to {final_path}")
             shutil.copy(src=str(content.path), dst=str(final_path))
 
 
-add_source_entry(
-    source_type=CONNECTOR_TYPE,
-    entry=SourceRegistryEntry(
-        indexer=LocalIndexer,
-        indexer_config=LocalIndexerConfig,
-        downloader=LocalDownloader,
-        downloader_config=LocalDownloaderConfig,
-    ),
+local_source_entry = SourceRegistryEntry(
+    indexer=LocalIndexer,
+    indexer_config=LocalIndexerConfig,
+    downloader=LocalDownloader,
+    downloader_config=LocalDownloaderConfig,
+    connection_config=LocalConnectionConfig,
 )
 
-add_destination_entry(
-    destination_type=CONNECTOR_TYPE,
-    entry=DestinationRegistryEntry(uploader=LocalUploader, uploader_config=LocalUploaderConfig),
+local_destination_entry = DestinationRegistryEntry(
+    uploader=LocalUploader, uploader_config=LocalUploaderConfig
 )

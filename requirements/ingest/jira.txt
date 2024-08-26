@@ -4,13 +4,13 @@
 #
 #    pip-compile ./ingest/jira.in
 #
-atlassian-python-api==3.41.13
+atlassian-python-api==3.41.14
     # via -r ./ingest/jira.in
 beautifulsoup4==4.12.3
     # via
     #   -c ./ingest/../base.txt
     #   atlassian-python-api
-certifi==2024.2.2
+certifi==2024.7.4
     # via
     #   -c ./ingest/../base.txt
     #   -c ./ingest/../deps/constraints.txt
@@ -21,7 +21,7 @@ charset-normalizer==3.3.2
     #   requests
 deprecated==1.2.14
     # via atlassian-python-api
-idna==3.7
+idna==3.8
     # via
     #   -c ./ingest/../base.txt
     #   requests
@@ -31,7 +31,7 @@ oauthlib==3.2.2
     # via
     #   atlassian-python-api
     #   requests-oauthlib
-requests==2.32.2
+requests==2.32.3
     # via
     #   -c ./ingest/../base.txt
     #   atlassian-python-api
@@ -42,11 +42,11 @@ six==1.16.0
     # via
     #   -c ./ingest/../base.txt
     #   atlassian-python-api
-soupsieve==2.5
+soupsieve==2.6
     # via
     #   -c ./ingest/../base.txt
     #   beautifulsoup4
-urllib3==1.26.18
+urllib3==1.26.19
     # via
     #   -c ./ingest/../base.txt
     #   -c ./ingest/../deps/constraints.txt

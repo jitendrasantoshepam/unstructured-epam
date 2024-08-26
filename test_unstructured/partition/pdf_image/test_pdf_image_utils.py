@@ -36,7 +36,7 @@ def test_write_image(image_type):
 @pytest.mark.parametrize("file_mode", ["filename", "rb"])
 @pytest.mark.parametrize("path_only", [True, False])
 def test_convert_pdf_to_image(
-    file_mode, path_only, filename=example_doc_path("embedded-images.pdf")
+    file_mode, path_only, filename=example_doc_path("pdf/embedded-images.pdf")
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
         if file_mode == "filename":
@@ -71,8 +71,8 @@ def test_convert_pdf_to_image_raises_error(filename=example_doc_path("embedded-i
 @pytest.mark.parametrize(
     ("filename", "is_image"),
     [
-        (example_doc_path("layout-parser-paper-fast.pdf"), False),
-        (example_doc_path("layout-parser-paper-fast.jpg"), True),
+        (example_doc_path("pdf/layout-parser-paper-fast.pdf"), False),
+        (example_doc_path("img/layout-parser-paper-fast.jpg"), True),
     ],
 )
 @pytest.mark.parametrize("element_category_to_save", [ElementType.IMAGE, ElementType.TABLE])
@@ -117,6 +117,7 @@ def test_save_elements(
 
         pdf_image_utils.save_elements(
             elements=elements,
+            starting_page_number=1,
             element_category_to_save=element_category_to_save,
             pdf_image_dpi=200,
             filename=filename,
@@ -157,6 +158,7 @@ def test_save_elements_with_output_dir_path_none(monkeypatch, storage_enabled):
         pdf_image_utils.save_elements(
             elements=[],
             element_category_to_save="",
+            starting_page_number=1,
             pdf_image_dpi=200,
             filename="dummy.pdf",
             output_dir_path=None,
@@ -299,8 +301,8 @@ def test_annotate_layout_elements_with_image():
 @pytest.mark.parametrize(
     ("filename", "is_image"),
     [
-        (example_doc_path("layout-parser-paper-fast.pdf"), False),
-        (example_doc_path("layout-parser-paper-fast.jpg"), True),
+        (example_doc_path("pdf/layout-parser-paper-fast.pdf"), False),
+        (example_doc_path("img/layout-parser-paper-fast.jpg"), True),
     ],
 )
 def test_annotate_layout_elements(filename, is_image):

@@ -50,11 +50,9 @@ class TableAlignment:
 
     @staticmethod
     def _zip_to_dataframe(table_data: List[Dict[str, Any]]) -> pd.DataFrame:
-        df = pd.DataFrame(table_data).pivot(
-            index="row_index",
-            columns="col_index",
-            values="content",
-        )
+        df = pd.DataFrame(table_data, columns=["row_index", "col_index", "content"])
+        df = df.set_index("row_index")
+        df["col_index"] = df["col_index"].astype(str)
         return df
 
     @staticmethod
@@ -76,14 +74,17 @@ class TableAlignment:
           A dictionary with column and row alignment accuracies.
 
         """
-        aligned_element_col_count = 0
-        aligned_element_row_count = 0
-        total_element_count = 0
         content_diff_cols = []
         content_diff_rows = []
+        col_index_acc = []
+        row_index_acc = []
 
         for idx, td in zip(matched_indices, predicted_table_data):
             if idx == -1:
+                content_diff_cols.append(0)
+                content_diff_rows.append(0)
+                col_index_acc.append(0)
+                row_index_acc.append(0)
                 continue
             ground_truth_td = ground_truth_table_data[idx]
 
@@ -98,9 +99,12 @@ class TableAlignment:
             content_diff_cols.append(table_content_diff["by_col_token_ratio"])
             content_diff_rows.append(table_content_diff["by_row_token_ratio"])
 
+            aligned_element_col_count = 0
+            aligned_element_row_count = 0
+            total_element_count = 0
             # Get row and col index accuracy
             ground_truth_td_contents_list = [gtd["content"].lower() for gtd in ground_truth_td]
-
+            used_indices = set()
             indices_tuple_pairs = []
             for td_ele in td:
                 content = td_ele["content"].lower()
@@ -113,8 +117,31 @@ class TableAlignment:
                     cutoff=cutoff,
                     n=1,
                 )
-                matched_idx = ground_truth_td_contents_list.index(matches[0]) if matches else -1
-
+                # BUG FIX: the previous matched_idx will only output the first matched index if
+                # the match has duplicates in the
+                # ground_truth_td_contents_list, the current fix will output its correspondence idx
+                # once matching is exhausted, it will go back search again the same fashion
+                matching_indices = []
+                if matches != []:
+                    b_indices = [
+                        i
+                        for i, b_string in enumerate(ground_truth_td_contents_list)
+                        if b_string == matches[0] and i not in used_indices
+                    ]
+                    if not b_indices:
+                        # If all indices are used, reset used_indices and use the first index
+                        used_indices.clear()
+                        b_indices = [
+                            i
+                            for i, b_string in enumerate(ground_truth_td_contents_list)
+                            if b_string == matches[0] and i not in used_indices
+                        ]
+                    matching_index = b_indices[0]
+                    matching_indices.append(matching_index)
+                    used_indices.add(matching_index)
+                else:
+                    matching_indices = [-1]
+                matched_idx = matching_indices[0]
                 if matched_idx >= 0:
                     gt_row_index = ground_truth_td[matched_idx]["row_index"]
                     gt_col_index = ground_truth_td[matched_idx]["col_index"]
@@ -127,17 +154,27 @@ class TableAlignment:
                     aligned_element_col_count += 1
                 total_element_count += 1
 
-        if total_element_count > 0:
-            col_index_acc = round(aligned_element_col_count / total_element_count, 2)
-            row_index_acc = round(aligned_element_row_count / total_element_count, 2)
-            col_content_acc = round(np.mean(content_diff_cols) / 100.0, 2)
-            row_content_acc = round(np.mean(content_diff_rows) / 100.0, 2)
+            table_col_index_acc = 0
+            table_row_index_acc = 0
+            if total_element_count > 0:
+                table_col_index_acc = round(aligned_element_col_count / total_element_count, 2)
+                table_row_index_acc = round(aligned_element_row_count / total_element_count, 2)
 
-            return {
-                "col_index_acc": col_index_acc,
-                "row_index_acc": row_index_acc,
-                "col_content_acc": col_content_acc,
-                "row_content_acc": row_content_acc,
-            }
+            col_index_acc.append(table_col_index_acc)
+            row_index_acc.append(table_row_index_acc)
 
-        return {}
+        not_found_gt_table_indexes = [
+            id for id in range(len(ground_truth_table_data)) if id not in matched_indices
+        ]
+        for _ in not_found_gt_table_indexes:
+            content_diff_cols.append(0)
+            content_diff_rows.append(0)
+            col_index_acc.append(0)
+            row_index_acc.append(0)
+
+        return {
+            "col_index_acc": round(np.mean(col_index_acc), 2),
+            "row_index_acc": round(np.mean(row_index_acc), 2),
+            "col_content_acc": round(np.mean(content_diff_cols) / 100.0, 2),
+            "row_content_acc": round(np.mean(content_diff_cols) / 100.0, 2),
+        }

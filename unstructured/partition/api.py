@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-import json
-from typing import IO, Optional
+from typing import IO, Any, Optional, Sequence
 
 import requests
 from unstructured_client import UnstructuredClient
@@ -22,7 +21,7 @@ def partition_via_api(
     api_url: str = "https://api.unstructured.io/general/v0/general",
     api_key: str = "",
     metadata_filename: Optional[str] = None,
-    **request_kwargs,
+    **request_kwargs: Any,
 ) -> list[Element]:
     """Partitions a document using the Unstructured REST API. This is equivalent to
     running the document through partition.
@@ -84,13 +83,6 @@ def partition_via_api(
             )
         files = shared.Files(content=file, file_name=metadata_filename)
 
-    # NOTE(christine): Converts all list type parameters to JSON formatted strings
-    # (e.g. ["image", "table"] -> '["image", "table"]')
-    # This can be removed if "speakeasy" supports passing list type parameters to FastAPI.
-    for k, v in request_kwargs.items():
-        if isinstance(v, list):
-            request_kwargs[k] = json.dumps(v)
-
     req = shared.PartitionParameters(files=files, **request_kwargs)
     response = sdk.general.partition(req)
 
@@ -105,12 +97,12 @@ def partition_via_api(
 def partition_multiple_via_api(
     filenames: Optional[list[str]] = None,
     content_types: Optional[list[str]] = None,
-    files: Optional[list[str]] = None,
+    files: Optional[Sequence[IO[bytes]]] = None,
     file_filenames: Optional[list[str]] = None,
     api_url: str = "https://api.unstructured.io/general/v0/general",
     api_key: str = "",
     metadata_filenames: Optional[list[str]] = None,
-    **request_kwargs,
+    **request_kwargs: Any,
 ) -> list[list[Element]]:
     """Partitions multiple documents using the Unstructured REST API by batching
     the documents into a single HTTP request.

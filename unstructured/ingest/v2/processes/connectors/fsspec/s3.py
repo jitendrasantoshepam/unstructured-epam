@@ -1,3 +1,4 @@
+import contextlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -6,12 +7,10 @@ from typing import Any, Generator, Optional
 
 from unstructured.documents.elements import DataSourceMetadata
 from unstructured.ingest.enhanced_dataclass import enhanced_field
-from unstructured.ingest.v2.interfaces import FileData, UploadContent
+from unstructured.ingest.v2.interfaces import DownloadResponse, FileData, UploadContent
 from unstructured.ingest.v2.processes.connector_registry import (
     DestinationRegistryEntry,
     SourceRegistryEntry,
-    add_destination_entry,
-    add_source_entry,
 )
 from unstructured.ingest.v2.processes.connectors.fsspec.fsspec import (
     FsspecAccessConfig,
@@ -66,10 +65,6 @@ class S3Indexer(FsspecIndexer):
     index_config: S3IndexerConfig
     connector_type: str = CONNECTOR_TYPE
 
-    @requires_dependencies(["s3fs", "fsspec"], extras="s3")
-    def __post_init__(self):
-        super().__post_init__()
-
     def get_metadata(self, path: str) -> DataSourceMetadata:
         date_created = None
         date_modified = None
@@ -85,16 +80,22 @@ class S3Indexer(FsspecIndexer):
         info: dict[str, Any] = self.fs.info(path)
         if etag := info.get("ETag"):
             version = str(etag).rstrip('"').lstrip('"')
+        metadata: dict[str, str] = {}
+        with contextlib.suppress(AttributeError):
+            metadata = self.fs.metadata(path)
+        record_locator = {
+            "protocol": self.index_config.protocol,
+            "remote_file_path": self.index_config.remote_url,
+        }
+        if metadata:
+            record_locator["metadata"] = metadata
         return DataSourceMetadata(
             date_created=date_created,
             date_modified=date_modified,
             date_processed=str(time()),
             version=version,
             url=f"{self.index_config.protocol}://{path}",
-            record_locator={
-                "protocol": self.index_config.protocol,
-                "remote_file_path": self.index_config.remote_url,
-            },
+            record_locator=record_locator,
         )
 
     @requires_dependencies(["s3fs", "fsspec"], extras="s3")
@@ -115,15 +116,11 @@ class S3Downloader(FsspecDownloader):
     download_config: Optional[S3DownloaderConfig] = field(default_factory=S3DownloaderConfig)
 
     @requires_dependencies(["s3fs", "fsspec"], extras="s3")
-    def __post_init__(self):
-        super().__post_init__()
-
-    @requires_dependencies(["s3fs", "fsspec"], extras="s3")
-    def run(self, file_data: FileData, **kwargs: Any) -> Path:
+    def run(self, file_data: FileData, **kwargs: Any) -> DownloadResponse:
         return super().run(file_data=file_data, **kwargs)
 
     @requires_dependencies(["s3fs", "fsspec"], extras="s3")
-    async def run_async(self, file_data: FileData, **kwargs: Any) -> Path:
+    async def run_async(self, file_data: FileData, **kwargs: Any) -> DownloadResponse:
         return await super().run_async(file_data=file_data, **kwargs)
 
 
@@ -133,7 +130,8 @@ class S3UploaderConfig(FsspecUploaderConfig):
 
 
 @dataclass
-class S3Upload(FsspecUploader):
+class S3Uploader(FsspecUploader):
+    connector_type: str = CONNECTOR_TYPE
     connection_config: S3ConnectionConfig
     upload_config: S3UploaderConfig = field(default=None)
 
@@ -150,22 +148,16 @@ class S3Upload(FsspecUploader):
         return await super().run_async(path=path, file_data=file_data, **kwargs)
 
 
-add_source_entry(
-    source_type=CONNECTOR_TYPE,
-    entry=SourceRegistryEntry(
-        indexer=S3Indexer,
-        indexer_config=S3IndexerConfig,
-        downloader=S3Downloader,
-        downloader_config=S3DownloaderConfig,
-        connection_config=S3ConnectionConfig,
-    ),
+s3_source_entry = SourceRegistryEntry(
+    indexer=S3Indexer,
+    indexer_config=S3IndexerConfig,
+    downloader=S3Downloader,
+    downloader_config=S3DownloaderConfig,
+    connection_config=S3ConnectionConfig,
 )
 
-add_destination_entry(
-    destination_type=CONNECTOR_TYPE,
-    entry=DestinationRegistryEntry(
-        uploader=S3Upload,
-        uploader_config=S3UploaderConfig,
-        connection_config=S3ConnectionConfig,
-    ),
+s3_destination_entry = DestinationRegistryEntry(
+    uploader=S3Uploader,
+    uploader_config=S3UploaderConfig,
+    connection_config=S3ConnectionConfig,
 )

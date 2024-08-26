@@ -21,7 +21,7 @@ jobs:
     env:
       NLTK_DATA: ${{ github.workspace }}/nltk_data
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions/base-cache
       with:
         python-version: ${{ matrix.python-version }}
@@ -33,9 +33,9 @@ jobs:
         python-version: ["3.9","3.10","3.11", "3.12"]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Check for dependency conflicts
@@ -47,13 +47,33 @@ jobs:
         python-version: [ "3.9","3.10","3.11","3.12" ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install all extras
         run: make check-extras
+
+  check-licenses:
+    strategy:
+      matrix:
+        python-version: [ "3.12" ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # NOTE(robinson) - dependencies are installed first because liccheck
+      # produces an error if there is a a mismatch between the dep version
+      # in the requirements file and the dep version in site packages
+      - name: Install all doc and test dependencies
+        run: |
+          make install-ci
+          make install-all-ingest
+          make check-licenses
 
   lint:
     strategy:
@@ -64,9 +84,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, changelog]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup virtual environment
@@ -81,14 +101,14 @@ jobs:
   shellcheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@master
 
   shfmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: setup shfmt
         uses: mfinelli/setup-shfmt@v3
       - name: Run shfmt
@@ -100,13 +120,11 @@ jobs:
       matrix:
         python-version: ["3.9","3.10","3.11", "3.12"]
     runs-on: ubuntu-latest
-    env:
-      NLTK_DATA: ${{ github.workspace }}/nltk_data
     needs: [setup, lint]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup virtual environment
@@ -116,7 +134,7 @@ jobs:
     - name: Test
       env:
         UNS_API_KEY: ${{ secrets.UNS_API_KEY }}
-        TESSERACT_VERSION : "5.3.4"
+        TESSERACT_VERSION : "5.4.1"
       run: |
         source .venv/bin/activate
         sudo apt-get update
@@ -141,13 +159,12 @@ jobs:
         python-version: ["3.10"]
     runs-on: ubuntu-latest
     env:
-      NLTK_DATA: ${{ github.workspace }}/nltk_data
       UNSTRUCTURED_HF_TOKEN: ${{ secrets.HF_TOKEN }}
     needs: [setup, lint]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup virtual environment
@@ -159,6 +176,7 @@ jobs:
         UNS_API_KEY: ${{ secrets.UNS_API_KEY }}
       run: |
         source .venv/bin/activate
+        make install-nltk-models
         sudo apt-get update
         sudo apt-get install -y poppler-utils
         make install-pandoc install-test
@@ -173,13 +191,11 @@ jobs:
       matrix:
         python-version: ["3.10"]
     runs-on: ubuntu-latest
-    env:
-      NLTK_DATA: ${{ github.workspace }}/nltk_data
     needs: [setup, lint]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup virtual environment
@@ -191,6 +207,7 @@ jobs:
         UNS_API_KEY: ${{ secrets.UNS_API_KEY }}
       run: |
         source .venv/bin/activate
+        make install-nltk-models
         make test-no-extras CI=true
 
   test_unit_dependency_extras:
@@ -204,12 +221,12 @@ jobs:
       NLTK_DATA: ${{ github.workspace }}/nltk_data
     needs: [setup, lint, test_unit_no_extras]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: actions/cache/restore@v3
+    - uses: actions/cache/restore@v4
       id: virtualenv-cache
       with:
         path: |
@@ -246,7 +263,7 @@ jobs:
       NLTK_DATA: ${{ github.workspace }}/nltk_data
     needs: [setup]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/base-ingest-cache
         with:
           python-version: ${{ matrix.python-version }}
@@ -261,7 +278,7 @@ jobs:
       # actions/checkout MUST come before auth
       - uses: 'actions/checkout@v4'
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Get full Python version
@@ -274,6 +291,7 @@ jobs:
       - name: Test Ingest (unit)
         run: |
           source .venv/bin/activate
+          make install-nltk-models
           PYTHONPATH=. pytest test_unstructured_ingest/unit
 
 
@@ -282,14 +300,12 @@ jobs:
       matrix:
         python-version: ["3.9","3.10"]
     runs-on: ubuntu-latest-m
-    env:
-      NLTK_DATA: ${{ github.workspace }}/nltk_data
     needs: [setup_ingest, lint]
     steps:
     # actions/checkout MUST come before auth
     - uses: 'actions/checkout@v4'
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Get full Python version
@@ -342,12 +358,16 @@ jobs:
         AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
         AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        OCTOAI_API_KEY: ${{ secrets.OCTOAI_API_KEY }}
         PINECONE_API_KEY: ${{secrets.PINECONE_API_KEY}}
+        ASTRA_DB_APPLICATION_TOKEN: ${{secrets.ASTRA_DB_TOKEN}}
+        ASTRA_DB_API_ENDPOINT: ${{secrets.ASTRA_DB_ENDPOINT}}
         TABLE_OCR: "tesseract"
         OCR_AGENT: "unstructured.partition.utils.ocr_models.tesseract_ocr.OCRAgentTesseract"
         CI: "true"
       run: |
         source .venv/bin/activate
+        make install-nltk-models
         sudo apt-get update
         sudo apt-get install -y libmagic-dev poppler-utils libreoffice
         make install-pandoc
@@ -366,14 +386,12 @@ jobs:
       matrix:
         python-version: ["3.9","3.10"]
     runs-on: ubuntu-latest-m
-    env:
-      NLTK_DATA: ${{ github.workspace }}/nltk_data
     needs: [setup_ingest, lint]
     steps:
     # actions/checkout MUST come before auth
     - uses: 'actions/checkout@v4'
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Get full Python version
@@ -408,14 +426,19 @@ jobs:
         VECTARA_OAUTH_CLIENT_ID: ${{secrets.VECTARA_OAUTH_CLIENT_ID}}
         VECTARA_OAUTH_SECRET: ${{secrets.VECTARA_OAUTH_SECRET}}
         VECTARA_CUSTOMER_ID: ${{secrets.VECTARA_CUSTOMER_ID}}
-        ASTRA_DB_TOKEN: ${{secrets.ASTRA_DB_TOKEN}}
-        ASTRA_DB_ENDPOINT: ${{secrets.ASTRA_DB_ENDPOINT}}
+        ASTRA_DB_APPLICATION_TOKEN: ${{secrets.ASTRA_DB_TOKEN}}
+        ASTRA_DB_API_ENDPOINT: ${{secrets.ASTRA_DB_ENDPOINT}}
         CLARIFAI_API_KEY: ${{secrets.CLARIFAI_API_KEY}}
+        DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+        DATABRICKS_USERNAME: ${{secrets.DATABRICKS_USERNAME}}
+        DATABRICKS_PASSWORD: ${{secrets.DATABRICKS_PASSWORD}}
+        DATABRICKS_CATALOG: ${{secrets.DATABRICKS_CATALOG}}
         TABLE_OCR: "tesseract"
         OCR_AGENT: "unstructured.partition.utils.ocr_models.tesseract_ocr.OCRAgentTesseract"
         CI: "true"
       run: |
         source .venv/bin/activate
+        make install-nltk-models
         sudo apt-get update
         sudo apt-get install -y libmagic-dev poppler-utils libreoffice
         make install-pandoc
@@ -427,6 +450,29 @@ jobs:
         tesseract --version
         ./test_unstructured_ingest/test-ingest-dest.sh
 
+  test_ingest_help:
+    environment: ci
+    strategy:
+      matrix:
+        python-version: ["3.9","3.10","3.11", "3.12"]
+    runs-on: ubuntu-latest
+    needs: [setup_ingest, lint]
+    steps:
+      - uses: 'actions/checkout@v4'
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup virtual environment
+        uses: ./.github/actions/base-ingest-cache
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Validate --help
+        run: |
+          source .venv/bin/activate
+          ./test_unstructured_ingest/test-help.sh
+
+
   test_unstructured_api_unit:
     strategy:
       matrix:
@@ -437,7 +483,7 @@ jobs:
       NLTK_DATA: ${{ github.workspace }}/nltk_data
     needs: [setup, lint]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup virtual environment
       uses: ./.github/actions/base-cache
       with:
@@ -449,7 +495,7 @@ jobs:
         echo "SKIP_API_UNIT_FOR_BREAKING_CHANGE=true" >> $GITHUB_ENV
     - name: Set up Python ${{ matrix.python-version }}
       if: env.SKIP_API_UNIT_FOR_BREAKING_CHANGE == 'false'
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup virtual environment (no cache hit)
@@ -477,9 +523,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # need to checkout otherwise paths-filter will fail on merge-queue trigger
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: github.ref != 'refs/heads/main'
-      uses: dorny/paths-filter@v2
+      uses: dorny/paths-filter@v3
       id: changes
       with:
         filters: |
@@ -495,16 +541,15 @@ jobs:
     runs-on: ubuntu-latest-m
     needs: [ setup, lint ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Test Dockerfile
         run: |
           echo "UNS_API_KEY=${{ secrets.UNS_API_KEY }}" > uns_test_env_file
-          make docker-dl-packages
           make docker-build
           make docker-test CI=true UNSTRUCTURED_INCLUDE_DEBUG_METADATA=true
       - name: Scan image
         uses: anchore/scan-action@v3
         with:
           image: "unstructured:dev"
-          # NOTE(robinson) - revert this to medium when we bump libreoffice
-          severity-cutoff: high
+          severity-cutoff: critical
+          only-fixed: true

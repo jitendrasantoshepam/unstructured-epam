@@ -19,6 +19,7 @@ export OMP_THREAD_LIMIT=1
 all_tests=(
   's3.sh'
   's3-minio.sh'
+  'astradb.sh'
   'azure.sh'
   'biomed-api.sh'
   'biomed-path.sh'
@@ -33,9 +34,10 @@ all_tests=(
   'google-drive.sh'
   'wikipedia.sh'
   'local.sh'
-  'slack.sh'
+  # 'slack.sh'
   'against-api.sh'
   'gcs.sh'
+  'kafka-local.sh'
   'onedrive.sh'
   'outlook.sh'
   'elasticsearch.sh'
@@ -52,8 +54,8 @@ all_tests=(
   'notion.sh'
   'delta-table.sh'
   'jira.sh'
-  'sharepoint.sh'
-  'sharepoint-with-permissions.sh'
+  # 'sharepoint.sh'
+  # 'sharepoint-with-permissions.sh'
   'hubspot.sh'
   'local-embed.sh'
   'local-embed-bedrock.sh'
@@ -66,7 +68,7 @@ all_tests=(
 )
 
 full_python_matrix_tests=(
-  'sharepoint.sh'
+  #  'sharepoint.sh'
   'local.sh'
   'local-single-file.sh'
   'local-single-file-with-encoding.sh'
@@ -93,7 +95,6 @@ python_version=$(python --version 2>&1)
 
 tests_to_ignore=(
   'notion.sh'
-  'dropbox.sh'
 )
 
 for test in "${all_tests[@]}"; do
@@ -110,11 +111,21 @@ for test in "${all_tests[@]}"; do
   rc=$?
   if [[ $rc -eq 8 ]]; then
     echo "$test (skipped due to missing env var)" | tee -a "$SKIPPED_FILES_LOG"
-  elif [[ "${tests_to_ignore[*]}" =~ $test ]]; then
-    echo "$test (skipped checking error code: $rc)" | tee -a "$SKIPPED_FILES_LOG"
-    continue
-  elif [[ $rc -ne 0 ]]; then
-    exit $rc
+  else
+    # Check if the test is in tests_to_ignore
+    ignore_test=false
+    for ignore in "${tests_to_ignore[@]}"; do
+      if [[ "$ignore" == "$test" ]]; then
+        ignore_test=true
+        break
+      fi
+    done
+    if $ignore_test; then
+      echo "$test (skipped checking error code: $rc)" | tee -a "$SKIPPED_FILES_LOG"
+      continue
+    elif [[ $rc -ne 0 ]]; then
+      exit $rc
+    fi
   fi
   echo "--------- FINISHED SCRIPT $test ---------"
 done

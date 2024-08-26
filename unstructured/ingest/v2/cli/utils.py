@@ -1,14 +1,23 @@
 import json
 import os.path
+import sys
 from dataclasses import fields, is_dataclass
 from gettext import gettext, ngettext
+from gettext import gettext as _
 from pathlib import Path
-from typing import Any, Optional, Type, TypeVar, Union, get_args, get_origin
+from typing import Any, ForwardRef, Optional, Type, TypeVar, Union, get_args, get_origin
 
 import click
 
 from unstructured.ingest.enhanced_dataclass import EnhancedDataClassJsonMixin
 from unstructured.ingest.v2.logger import logger
+
+
+def conform_click_options(options: dict):
+    # Click sets all multiple fields as tuple, this needs to be updated to list
+    for k, v in options.items():
+        if isinstance(v, tuple):
+            options[k] = list(v)
 
 
 class Dict(click.ParamType):
@@ -129,6 +138,19 @@ def extract_config(
         dd = inner_d.copy()
         for field in fields(inner_config):
             f_type = field.type
+            # typing can be defined using a string, in which case it needs to be resolved
+            # to the actual type. following logic is cherry picked from the typing
+            # get_type_hints() since type resolution can be expensive, only do it
+            # when the type is a string
+            if isinstance(f_type, str):
+                try:
+                    base_globals = sys.modules[inner_config.__module__].__dict__
+                    for_ref = ForwardRef(f_type, is_argument=False, is_class=True)
+                    f_type = for_ref._evaluate(
+                        globalns=base_globals, localns=None, recursive_guard=frozenset()
+                    )
+                except NameError as e:
+                    logger.warning(f"couldn't resolve type {f_type}: {e}")
             # Handle the case where the type of a value if a Union (possibly optional)
             if get_origin(f_type) is Union:
                 union_values = get_args(f_type)
@@ -165,3 +187,54 @@ def extract_config(
 
     adjusted_dict = conform_dict(inner_d=flat_data, inner_config=config)
     return config.from_dict(adjusted_dict, apply_name_overload=False)
+
+
+class Group(click.Group):
+    def parse_args(self, ctx, args):
+        """
+        This allows for subcommands to be called with the --help flag without breaking
+        if parent command is missing any of its required parameters
+        """
+
+        try:
+            return super().parse_args(ctx, args)
+        except click.MissingParameter:
+            if "--help" not in args:
+                raise
+
+            # remove the required params so that help can display
+            for param in self.params:
+                param.required = False
+            return super().parse_args(ctx, args)
+
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        """
+        Copy of the original click.Group format_commands() method but replacing
+        'Commands' -> 'Destinations'
+        """
+        commands = []
+        for subcommand in self.list_commands(ctx):
+            cmd = self.get_command(ctx, subcommand)
+            # What is this, the tool lied about a command.  Ignore it
+            if cmd is None:
+                continue
+            if cmd.hidden:
+                continue
+
+            commands.append((subcommand, cmd))
+
+        # allow for 3 times the default spacing
+        if len(commands):
+            if formatter.width:
+                limit = formatter.width - 6 - max(len(cmd[0]) for cmd in commands)
+            else:
+                limit = -6 - max(len(cmd[0]) for cmd in commands)
+
+            rows = []
+            for subcommand, cmd in commands:
+                help = cmd.get_short_help_str(limit)
+                rows.append((subcommand, help))
+
+            if rows:
+                with formatter.section(_("Destinations")):
+                    formatter.write_dl(rows)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2012
 
 set -e
 
@@ -35,7 +36,7 @@ trap cleanup EXIT
 
 # NOTE(robinson) - per pymongo docs, pymongo ships with its own version of the bson library,
 # which is incompatible with the bson installed from pypi. bson is installed as part of the
-# astra dependencies.
+# astradb dependencies.
 # ref: https://pymongo.readthedocs.io/en/stable/installation.html
 pip uninstall -y bson pymongo
 make install-ingest-mongodb
@@ -53,7 +54,7 @@ PYTHONPATH=${PYTHONPATH:-.} "$RUN_SCRIPT" \
   --strategy fast \
   --verbose \
   --reprocess \
-  --input-path example-docs/fake-memo.pdf \
+  --input-path example-docs/pdf/fake-memo.pdf \
   --work-dir "$WORK_DIR" \
   --embedding-provider "langchain-huggingface" \
   mongodb \
@@ -67,9 +68,10 @@ python "$SCRIPT_DIR"/python/test-ingest-mongodb.py \
   --collection "$DESTINATION_MONGO_COLLECTION" \
   check --expected-records 5
 
+stage_file=$(ls -1 "$WORK_DIR"/upload_stage | head -n 1)
 python "$SCRIPT_DIR"/python/test-ingest-mongodb.py \
   --uri "$MONGODB_URI" \
   --database "$MONGODB_DATABASE_NAME" \
   --collection "$DESTINATION_MONGO_COLLECTION" \
   check-vector \
-  --output-json "$OUTPUT_ROOT"/structured-output/$OUTPUT_FOLDER_NAME/fake-memo.pdf.json
+  --output-json "$WORK_DIR"/upload_stage/"$stage_file"

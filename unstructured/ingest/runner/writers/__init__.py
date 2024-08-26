@@ -1,6 +1,6 @@
 import typing as t
 
-from .astra import AstraWriter
+from .astradb import AstraDBWriter
 from .azure_cognitive_search import AzureCognitiveSearchWriter
 from .base_writer import Writer
 from .chroma import ChromaWriter
@@ -13,6 +13,7 @@ from .fsspec.box import BoxWriter
 from .fsspec.dropbox import DropboxWriter
 from .fsspec.gcs import GcsWriter
 from .fsspec.s3 import S3Writer
+from .kafka import KafkaWriter
 from .mongodb import MongodbWriter
 from .opensearch import OpenSearchWriter
 from .pinecone import PineconeWriter
@@ -22,7 +23,7 @@ from .vectara import VectaraWriter
 from .weaviate import WeaviateWriter
 
 writer_map: t.Dict[str, t.Type[Writer]] = {
-    "astra": AstraWriter,
+    "astradb": AstraDBWriter,
     "azure": AzureWriter,
     "azure_cognitive_search": AzureCognitiveSearchWriter,
     "box": BoxWriter,
@@ -33,6 +34,7 @@ writer_map: t.Dict[str, t.Type[Writer]] = {
     "dropbox": DropboxWriter,
     "elasticsearch": ElasticsearchWriter,
     "gcs": GcsWriter,
+    "kafka": KafkaWriter,
     "mongodb": MongodbWriter,
     "opensearch": OpenSearchWriter,
     "pinecone": PineconeWriter,

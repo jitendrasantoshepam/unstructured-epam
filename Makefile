@@ -38,15 +38,14 @@ install-huggingface:
 
 .PHONY: install-nltk-models
 install-nltk-models:
-	python -c "import nltk; nltk.download('punkt')"
-	python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
+	python3 -c "from unstructured.nlp.tokenize import download_nltk_packages; download_nltk_packages()"
 
 .PHONY: install-test
 install-test:
 	python3 -m pip install -r requirements/test.txt
 	# NOTE(yao) - CI seem to always install tesseract to test so it would make sense to also require
 	# pytesseract installation into the virtual env for testing
-	python3 -m pip install unstructured.pytesseract -c requirements/deps/constraints.txt
+	python3 -m pip install unstructured_pytesseract
 	# python3 -m pip install argilla==1.28.0 -c requirements/deps/constraints.txt
 	# NOTE(robinson) - Installing weaviate-client separately here because the requests
 	# version conflicts with label_studio_sdk
@@ -169,6 +168,10 @@ install-ingest-reddit:
 install-ingest-slack:
 	pip install -r requirements/ingest/slack.txt
 
+.PHONY: install-ingest-kafka
+install-ingest-kafka:
+	python3 -m pip install -r requirements/ingest/kafka.txt
+
 .PHONY: install-ingest-wikipedia
 install-ingest-wikipedia:
 	python3 -m pip install -r requirements/ingest/wikipedia.txt
@@ -192,6 +195,10 @@ install-ingest-airtable:
 .PHONY: install-ingest-sharepoint
 install-ingest-sharepoint:
 	python3 -m pip install -r requirements/ingest/sharepoint.txt
+
+.PHONY: install-ingest-singlestore
+install-ingest-singlestore:
+	python3 -m pip install -r requirements/ingest/singlestore.txt
 
 .PHONY: install-ingest-weaviate
 install-ingest-weaviate:
@@ -245,9 +252,9 @@ install-ingest-mongodb:
 install-ingest-databricks-volumes:
 	python3 -m pip install -r requirements/ingest/databricks-volumes.txt
 
-.PHONY: install-ingest-astra
-install-ingest-astra:
-	python3 -m pip install -r requirements/ingest/astra.txt
+.PHONY: install-ingest-astradb
+install-ingest-astradb:
+	python3 -m pip install -r requirements/ingest/astradb.txt
 
 .PHONY: install-ingest-clarifai
 install-ingest-clarifai:
@@ -268,10 +275,6 @@ install-local-inference: install install-all-docs
 .PHONY: install-pandoc
 install-pandoc:
 	ARCH=${ARCH} ./scripts/install-pandoc.sh
-
-.PHONY: install-paddleocr
-install-paddleocr:
-	ARCH=${ARCH} ./scripts/install-paddleocr.sh
 
 ## pip-compile:             compiles all base/dev/test requirements
 .PHONY: pip-compile
@@ -312,13 +315,12 @@ test-unstructured-api-unit:
 	scripts/test-unstructured-api-unit.sh
 
 .PHONY: test-no-extras
-# TODO(newelh) Add json test when fixed
 test-no-extras:
 	PYTHONPATH=. CI=$(CI) \
 		UNSTRUCTURED_INCLUDE_DEBUG_METADATA=$(UNSTRUCTURED_INCLUDE_DEBUG_METADATA) pytest \
 		test_${PACKAGE_NAME}/partition/test_text.py \
 		test_${PACKAGE_NAME}/partition/test_email.py \
-		test_${PACKAGE_NAME}/partition/test_html_partition.py \
+		test_${PACKAGE_NAME}/partition/html/test_partition.py \
 		test_${PACKAGE_NAME}/partition/test_xml_partition.py
 
 .PHONY: test-extra-csv
@@ -343,7 +345,9 @@ test-extra-markdown:
 
 .PHONY: test-extra-msg
 test-extra-msg:
-	PYTHONPATH=. CI=$(CI) pytest test_unstructured/partition/test_msg.py
+	# NOTE(scanny): exclude attachment test because partitioning attachments requires other extras
+	PYTHONPATH=. CI=$(CI) pytest test_unstructured/partition/test_msg.py \
+          -k "not test_partition_msg_can_process_attachments"
 
 .PHONY: test-extra-odt
 test-extra-odt:
@@ -385,6 +389,10 @@ check-black:
 .PHONY: check-flake8
 check-flake8:
 	flake8 .
+
+.PHONY: check-licenses
+check-licenses:
+	@scripts/check-licenses.sh
 
 # Check for print statements in ingest since anything going to console should be using the ingest logger
 # as it has a built in filter to redact sensitive information
@@ -458,10 +466,6 @@ DOCKER_IMAGE ?= unstructured:dev
 .PHONY: docker-build
 docker-build:
 	PIP_VERSION=${PIP_VERSION} DOCKER_IMAGE_NAME=${DOCKER_IMAGE} ./scripts/docker-build.sh
-
-.PHONY: docker-dl-packages
-docker-dl-packages:
-	@scripts/docker-dl-packages.sh
 
 .PHONY: docker-start-bash
 docker-start-bash:

@@ -4,7 +4,6 @@ from typing import Optional, Type
 
 import click
 
-from unstructured.ingest.cli.utils import Group, conform_click_options
 from unstructured.ingest.v2.cli.base.cmd import BaseCmd
 from unstructured.ingest.v2.cli.configs import (
     ChunkerCliConfig,
@@ -13,6 +12,7 @@ from unstructured.ingest.v2.cli.configs import (
     ProcessorCliConfig,
 )
 from unstructured.ingest.v2.cli.interfaces import CliConfig
+from unstructured.ingest.v2.cli.utils import Group, conform_click_options
 from unstructured.ingest.v2.logger import logger
 
 
@@ -37,7 +37,7 @@ class SrcCmd(BaseCmd):
         conform_click_options(options)
         logger.setLevel(logging.DEBUG if options.get("verbose", False) else logging.INFO)
         try:
-            pipeline = self.get_pipline(src=self.cmd_name, source_options=options)
+            pipeline = self.get_pipeline(src=self.cmd_name, source_options=options)
             pipeline.run()
         except Exception as e:
             logger.error(f"failed to run source command {self.cmd_name}: {e}", exc_info=True)
@@ -50,7 +50,7 @@ class SrcCmd(BaseCmd):
         cmd = click.group(fn, cls=Group)
         if not isinstance(cmd, click.core.Group):
             raise ValueError(f"generated src command was not of expected type Group: {type(cmd)}")
-        cmd.name = self.cmd_name
+        cmd.name = self.cli_cmd_name
         cmd.short_help = "v2"
         cmd.invoke_without_command = True
         extras = [

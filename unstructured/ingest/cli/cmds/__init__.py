@@ -7,7 +7,8 @@ from unstructured.ingest.cli.base.src import BaseSrcCmd
 from unstructured.ingest.cli.cmds.fsspec.sftp import get_base_src_cmd as sftp_base_src_cmd
 
 from .airtable import get_base_src_cmd as airtable_base_src_cmd
-from .astra import get_base_dest_cmd as astra_base_dest_cmd
+from .astradb import get_base_dest_cmd as astradb_base_dest_cmd
+from .astradb import get_base_src_cmd as astradb_base_src_cmd
 from .azure_cognitive_search import get_base_dest_cmd as azure_cognitive_search_base_dest_cmd
 from .biomed import get_base_src_cmd as biomed_base_src_cmd
 from .chroma import get_base_dest_cmd as chroma_base_dest_cmd
@@ -36,6 +37,8 @@ from .gitlab import get_base_src_cmd as gitlab_base_src_cmd
 from .google_drive import get_base_src_cmd as google_drive_base_src_cmd
 from .hubspot import get_base_src_cmd as hubspot_base_src_cmd
 from .jira import get_base_src_cmd as jira_base_src_cmd
+from .kafka import get_base_dest_cmd as kafka_base_dest_cmd
+from .kafka import get_base_src_cmd as kafka_base_src_cmd
 from .local import get_base_src_cmd as local_base_src_cmd
 from .mongodb import get_base_dest_cmd as mongo_base_dest_cmd
 from .mongodb import get_base_src_cmd as mongodb_base_src_cmd
@@ -60,6 +63,7 @@ if t.TYPE_CHECKING:
 
 base_src_cmd_fns: t.List[t.Callable[[], BaseSrcCmd]] = [
     airtable_base_src_cmd,
+    astradb_base_src_cmd,
     azure_base_src_cmd,
     biomed_base_src_cmd,
     box_base_src_cmd,
@@ -75,6 +79,7 @@ base_src_cmd_fns: t.List[t.Callable[[], BaseSrcCmd]] = [
     google_drive_base_src_cmd,
     hubspot_base_src_cmd,
     jira_base_src_cmd,
+    kafka_base_src_cmd,
     local_base_src_cmd,
     mongodb_base_src_cmd,
     notion_base_src_cmd,
@@ -101,7 +106,7 @@ if src_duplicates:
     )
 
 base_dest_cmd_fns: t.List[t.Callable[[], "BaseDestCmd"]] = [
-    astra_base_dest_cmd,
+    astradb_base_dest_cmd,
     azure_base_dest_cmd,
     box_base_dest_cmd,
     chroma_base_dest_cmd,
@@ -111,6 +116,7 @@ base_dest_cmd_fns: t.List[t.Callable[[], "BaseDestCmd"]] = [
     elasticsearch_base_dest_cmd,
     fsspec_base_dest_cmd,
     gcs_base_dest_cmd,
+    kafka_base_dest_cmd,
     s3_base_dest_cmd,
     azure_cognitive_search_base_dest_cmd,
     delta_table_dest_cmd,

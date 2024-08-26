@@ -129,7 +129,7 @@ setup(
         "xlsx": xlsx_reqs,
         # Extra requirements for data connectors
         "airtable": load_requirements("requirements/ingest/airtable.in"),
-        "astra": load_requirements("requirements/ingest/astra.in"),
+        "astradb": load_requirements("requirements/ingest/astradb.in"),
         "azure": load_requirements("requirements/ingest/azure.in"),
         "azure-cognitive-search": load_requirements(
             "requirements/ingest/azure-cognitive-search.in",
@@ -149,6 +149,7 @@ setup(
         "google-drive": load_requirements("requirements/ingest/google-drive.in"),
         "hubspot": load_requirements("requirements/ingest/hubspot.in"),
         "jira": load_requirements("requirements/ingest/jira.in"),
+        "kafka": load_requirements("requirements/ingest/kafka.in"),
         "mongodb": load_requirements("requirements/ingest/mongodb.in"),
         "notion": load_requirements("requirements/ingest/notion.in"),
         "onedrive": load_requirements("requirements/ingest/onedrive.in"),
@@ -176,6 +177,7 @@ setup(
         "openai": load_requirements("requirements/ingest/embed-openai.in"),
         "bedrock": load_requirements("requirements/ingest/embed-aws-bedrock.in"),
         "databricks-volumes": load_requirements("requirements/ingest/databricks-volumes.in"),
+        "singlestore": load_requirements("requirements/ingest/singlestore.in"),
     },
     package_dir={"unstructured": "unstructured"},
     package_data={"unstructured": ["nlp/*.txt", "py.typed"]},
