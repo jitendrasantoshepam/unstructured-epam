@@ -186,9 +186,6 @@ class ConfluenceIngestDoc(IngestDocCleanupMixin, BaseSingleIngestDoc):
     @requires_dependencies(["atlassian"], extras="confluence")
     @BaseSingleIngestDoc.skip_if_file_exists
     def get_file(self):
-        # TODO: instead of having a separate connection object for each doc,
-        # have a separate connection object for each process
-
         result = self._get_page()
         self.update_source_metadata(page=result)
         if result is None:
@@ -236,20 +233,20 @@ class ConfluenceSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector
 
     @requires_dependencies(["atlassian"], extras="Confluence")
     def initialize(self):
-        self.list_of_spaces = None
-        if self.connector_config.spaces:
-            self.list_of_spaces = self.connector_config.spaces
-            if self.connector_config.max_num_of_spaces:
-                logger.warning(
-                    """--confluence-list-of-spaces and --confluence-num-of-spaces cannot
-                    be used at the same time. Connector will only fetch the
-                    --confluence-list-of-spaces that you've provided.""",
-                )
+        # Initialize spaces, ensuring it's always a list
+        self.list_of_spaces = self.connector_config.spaces if self.connector_config.spaces else []
+
+        # Log a warning if both spaces and max_num_of_spaces are provided
+        if self.connector_config.spaces and self.connector_config.max_num_of_spaces:
+            logger.warning(
+                """--confluence-list-of-spaces and --confluence-num-of-spaces cannot
+                be used at the same time. Connector will only fetch the
+                --confluence-list-of-spaces that you've provided.""",
+            )
 
     @requires_dependencies(["atlassian"], extras="Confluence")
     def _get_space_ids(self):
         """Fetches spaces in a Confluence domain."""
-
         get_spaces_with_scroll = scroll_wrapper(self.confluence.get_all_spaces)
 
         all_results = get_spaces_with_scroll(
@@ -277,6 +274,7 @@ class ConfluenceSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector
 
     @requires_dependencies(["atlassian"], extras="Confluence")
     def _get_doc_ids_within_spaces(self):
+        # Fetch all space IDs if spaces are not provided
         space_ids = self._get_space_ids() if not self.list_of_spaces else self.list_of_spaces
 
         doc_ids_all = [self._get_docs_ids_within_one_space(space_id=id) for id in space_ids]
@@ -290,17 +288,29 @@ class ConfluenceSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector
 
     @requires_dependencies(["atlassian"], extras="Confluence")
     def _get_specific_page_ids(self):
+        # Handle cases where list_of_spaces might be empty
+        if not self.list_of_spaces:
+            # Assuming pages list contains tuples of (space_id, page_id)
+            return [(None, page_id) for page_id in self.connector_config.pages]
         return [(space_id, page_id) for space_id in self.list_of_spaces for page_id in self.connector_config.pages]
 
     def get_ingest_docs(self):
         """Fetches all documents in specified Confluence spaces or specific pages."""
-        doc_ids = self._get_doc_ids_within_spaces() + self._get_specific_page_ids()
+        if self.list_of_spaces:
+            doc_ids = self._get_doc_ids_within_spaces()
+        else:
+            doc_ids = self._get_specific_page_ids()
+        
+        # If spaces were provided and specific pages are also present, include them as well
+        if self.connector_config.spaces and self.connector_config.pages:
+            doc_ids += self._get_specific_page_ids()
+
         return [
             ConfluenceIngestDoc(
                 connector_config=self.connector_config,
                 processor_config=self.processor_config,
                 read_config=self.read_config,
-                document_meta=ConfluenceDocumentMeta(space_id, doc_id),
+                document_meta=ConfluenceDocumentMeta(space_id if space_id else "unknown_space", doc_id),
             )
             for space_id, doc_id in doc_ids
         ]
