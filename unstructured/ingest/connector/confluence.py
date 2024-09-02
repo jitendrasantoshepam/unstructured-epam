@@ -32,27 +32,31 @@ class ConfluenceAccessConfig(AccessConfig):
 @dataclass
 class SimpleConfluenceConfig(BaseConnectorConfig):
     """Connector config where:
-    user_email is the email to authenticate into Confluence Cloud,
-    api_token is the api token to authenticate into Confluence Cloud,
-    and url is the URL pointing to the Confluence Cloud instance.
-
-    Check https://developer.atlassian.com/cloud/confluence/basic-auth-for-rest-apis/
-    for more info on the api_token.
+    user_email is the email to authenticate into Confluence,
+    api_token is the api token to authenticate into Confluence,
+    url is the URL pointing to the Confluence instance,
+    isCloud is a boolean indicating if the instance is Cloud or Data Center,
+    max_num_of_spaces is the maximum number of spaces to ingest,
+    max_num_of_docs_from_each_space is the maximum number of documents to ingest from each space,
+    spaces is a list of space keys to ingest,
+    pages is a list of page ids to ingest.
     """
 
     user_email: str
     access_config: ConfluenceAccessConfig
     url: str
+    isCloud: bool
     max_num_of_spaces: int = 500
     max_num_of_docs_from_each_space: int = 100
     spaces: t.List[str] = field(default_factory=list)
+    pages: t.List[str] = field(default_factory=list)
 
 
 @dataclass
 class ConfluenceDocumentMeta:
     """Metadata specifying:
     id for the confluence space that the document locates in,
-    and the id of document that is being reached to.
+    and the id of the document that is being reached to.
     """
 
     space_id: str
@@ -74,9 +78,9 @@ def scroll_wrapper(func):
         for _ in range(num_iterations):
             response = func(*args, **kwargs)
             if isinstance(response, list):
-                all_results += func(*args, **kwargs)
+                all_results += response
             elif isinstance(response, dict):
-                all_results += func(*args, **kwargs)["results"]
+                all_results += response["results"]
 
             kwargs["start"] += kwargs["limit"]
 
@@ -91,14 +95,13 @@ class ConfluenceIngestDoc(IngestDocCleanupMixin, BaseSingleIngestDoc):
     doing the processing).
 
     Current implementation creates a Confluence connection object
-    to fetch each doc, rather than creating a it for each thread.
+    to fetch each doc, rather than creating it for each thread.
     """
 
     connector_config: SimpleConfluenceConfig
     document_meta: ConfluenceDocumentMeta
     registry_name: str = "confluence"
 
-    # TODO: remove one of filename or _tmp_download_file, using a wrapper
     @property
     def filename(self):
         if not self.read_config.download_dir:
@@ -111,7 +114,7 @@ class ConfluenceIngestDoc(IngestDocCleanupMixin, BaseSingleIngestDoc):
 
     @property
     def _output_filename(self):
-        """Create output file path based on output directory, space id and document id."""
+        """Create output file path based on output directory, space id, and document id."""
         output_file = f"{self.document_meta.document_id}.json"
         return Path(self.processor_config.output_dir) / self.document_meta.space_id / output_file
 
@@ -129,11 +132,18 @@ class ConfluenceIngestDoc(IngestDocCleanupMixin, BaseSingleIngestDoc):
         from atlassian.errors import ApiError
 
         try:
-            confluence = Confluence(
-                self.connector_config.url,
-                username=self.connector_config.user_email,
-                password=self.connector_config.access_config.api_token,
-            )
+            if self.connector_config.isCloud:
+                confluence = Confluence(
+                    self.connector_config.url,
+                    username=self.connector_config.user_email,
+                    password=self.connector_config.access_config.api_token,
+                )
+            else:
+                confluence = Confluence(
+                    self.connector_config.url,
+                    username=self.connector_config.user_email,
+                    token=self.connector_config.access_config.api_token,
+                )
             result = confluence.get_page_by_id(
                 page_id=self.document_meta.document_id,
                 expand="history.lastUpdated,version,body.view",
@@ -191,7 +201,7 @@ class ConfluenceIngestDoc(IngestDocCleanupMixin, BaseSingleIngestDoc):
 
 @dataclass
 class ConfluenceSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector):
-    """Fetches body fields from all documents within all spaces in a Confluence Cloud instance."""
+    """Fetches body fields from all documents within all spaces or specific pages in a Confluence instance."""
 
     connector_config: SimpleConfluenceConfig
     _confluence: t.Optional["Confluence"] = field(init=False, default=None)
@@ -201,11 +211,18 @@ class ConfluenceSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector
         from atlassian import Confluence
 
         if self._confluence is None:
-            self._confluence = Confluence(
-                url=self.connector_config.url,
-                username=self.connector_config.user_email,
-                password=self.connector_config.access_config.api_token,
-            )
+            if self.connector_config.isCloud:
+                self._confluence = Confluence(
+                    url=self.connector_config.url,
+                    username=self.connector_config.user_email,
+                    password=self.connector_config.access_config.api_token,
+                )
+            else:
+                self._confluence = Confluence(
+                    url=self.connector_config.url,
+                    username=self.connector_config.user_email,
+                    token=self.connector_config.access_config.api_token,
+                )
         return self._confluence
 
     @requires_dependencies(["atlassian"], extras="Confluence")
@@ -231,7 +248,7 @@ class ConfluenceSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector
 
     @requires_dependencies(["atlassian"], extras="Confluence")
     def _get_space_ids(self):
-        """Fetches spaces in a confluence domain."""
+        """Fetches spaces in a Confluence domain."""
 
         get_spaces_with_scroll = scroll_wrapper(self.confluence.get_all_spaces)
 
@@ -271,9 +288,13 @@ class ConfluenceSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector
         ]
         return doc_ids_flattened
 
+    @requires_dependencies(["atlassian"], extras="Confluence")
+    def _get_specific_page_ids(self):
+        return [(space_id, page_id) for space_id in self.list_of_spaces for page_id in self.connector_config.pages]
+
     def get_ingest_docs(self):
-        """Fetches all documents in a confluence space."""
-        doc_ids = self._get_doc_ids_within_spaces()
+        """Fetches all documents in specified Confluence spaces or specific pages."""
+        doc_ids = self._get_doc_ids_within_spaces() + self._get_specific_page_ids()
         return [
             ConfluenceIngestDoc(
                 connector_config=self.connector_config,
