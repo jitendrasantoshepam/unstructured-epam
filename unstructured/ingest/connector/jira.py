@@ -242,35 +242,36 @@ def scroll_wrapper(func, results_key="results"):
     def wrapper(*args, **kwargs):
         """Wraps a function to obtain scroll functionality.
         Function needs to be able to accept 'start' and 'limit' arguments."""
-        if "number_of_items_to_fetch" in kwargs:
-            number_of_items_to_fetch = kwargs["number_of_items_to_fetch"]
-            del kwargs["number_of_items_to_fetch"]
-        else:
-            number_of_items_to_fetch = 100
-
-        kwargs["limit"] = min(100, number_of_items_to_fetch)
+        kwargs["limit"] = 100  # Jira default limit is 100 per request
         kwargs["start"] = kwargs.get("start", 0)
 
         all_results = []
-        num_iterations = math.ceil(number_of_items_to_fetch / kwargs["limit"])
+        total_results = None
 
-        for _ in range(num_iterations):
+        while True:
             response = func(*args, **kwargs)
             if isinstance(response, list):
-                all_results += func(*args, **kwargs)
+                results = response
             elif isinstance(response, dict):
                 if results_key not in response:
                     raise KeyError(
                         "Response object has no known keys to \
                                    access the results, such as 'results' or 'values'.",
                     )
-                all_results += func(*args, **kwargs)[results_key]
+                results = response[results_key]
+                total_results = response.get("total", None)
+
+            all_results += results
+
+            # Break the loop if we have fetched all results
+            if len(results) < kwargs["limit"]:
+                break
+
             kwargs["start"] += kwargs["limit"]
 
-        return all_results[:number_of_items_to_fetch]
+        return all_results
 
     return wrapper
-
 
 @dataclass
 class JiraIngestDoc(IngestDocSessionHandleMixin, IngestDocCleanupMixin, BaseSingleIngestDoc):
@@ -397,7 +398,7 @@ class JiraSourceConnector(SourceConnectorCleanupMixin, BaseSourceConnector):
         """Fetches ids for all projects in a Jira domain."""
         project_ids = [project["key"] for project in self.jira.projects()]
         return project_ids
-
+                            
     @requires_dependencies(["atlassian"], extras="jira")
     def _get_issues_within_one_project(
         self,
