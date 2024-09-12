@@ -4,10 +4,9 @@
 #
 #    pip-compile ./ingest/dropbox.in
 #
-certifi==2024.7.4
+certifi==2024.8.30
     # via
     #   -c ./ingest/../base.txt
-    #   -c ./ingest/../deps/constraints.txt
     #   requests
 charset-normalizer==3.3.2
     # via
@@ -17,7 +16,7 @@ dropbox==12.0.2
     # via dropboxdrivefs
 dropboxdrivefs==1.4.1
     # via -r ./ingest/dropbox.in
-fsspec==2024.6.1
+fsspec==2024.9.0
     # via
     #   -r ./ingest/dropbox.in
     #   dropboxdrivefs
@@ -39,7 +38,7 @@ six==1.16.0
     #   stone
 stone==3.3.1
     # via dropbox
-urllib3==1.26.19
+urllib3==1.26.20
     # via
     #   -c ./ingest/../base.txt
     #   -c ./ingest/../deps/constraints.txt

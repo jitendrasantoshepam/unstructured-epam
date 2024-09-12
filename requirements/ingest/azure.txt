@@ -27,12 +27,11 @@ azure-identity==1.17.1
     # via adlfs
 azure-storage-blob==12.22.0
     # via adlfs
-certifi==2024.7.4
+certifi==2024.8.30
     # via
     #   -c ./ingest/../base.txt
-    #   -c ./ingest/../deps/constraints.txt
     #   requests
-cffi==1.17.0
+cffi==1.17.1
     # via
     #   azure-datalake-store
     #   cryptography
@@ -40,7 +39,7 @@ charset-normalizer==3.3.2
     # via
     #   -c ./ingest/../base.txt
     #   requests
-cryptography==43.0.0
+cryptography==43.0.1
     # via
     #   azure-identity
     #   azure-storage-blob
@@ -50,7 +49,7 @@ frozenlist==1.4.1
     # via
     #   aiohttp
     #   aiosignal
-fsspec==2024.6.1
+fsspec==2024.9.0
     # via
     #   -r ./ingest/azure.in
     #   adlfs
@@ -61,7 +60,7 @@ idna==3.8
     #   yarl
 isodate==0.6.1
     # via azure-storage-blob
-msal==1.30.0
+msal==1.31.0
     # via
     #   azure-datalake-store
     #   azure-identity
@@ -95,10 +94,10 @@ typing-extensions==4.12.2
     #   azure-core
     #   azure-identity
     #   azure-storage-blob
-urllib3==1.26.19
+urllib3==1.26.20
     # via
     #   -c ./ingest/../base.txt
     #   -c ./ingest/../deps/constraints.txt
     #   requests
-yarl==1.9.4
+yarl==1.11.0
     # via aiohttp

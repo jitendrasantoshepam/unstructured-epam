@@ -3,6 +3,7 @@ from typing import Dict, Type, cast
 
 from unstructured.ingest.connector.airtable import AirtableIngestDoc
 from unstructured.ingest.connector.astradb import AstraDBIngestDoc
+from unstructured.ingest.connector.azure_devops import AzureDevOpsIngestDoc
 from unstructured.ingest.connector.biomed import BiomedIngestDoc
 from unstructured.ingest.connector.confluence import ConfluenceIngestDoc
 from unstructured.ingest.connector.delta_table import DeltaTableIngestDoc
@@ -62,6 +63,7 @@ INGEST_DOC_NAME_TO_CLASS: Dict[str, Type[EnhancedDataClassJsonMixin]] = {
     "google_drive": GoogleDriveIngestDoc,
     "hubspot": HubSpotIngestDoc,
     "jira": JiraIngestDoc,
+    "azure_devops": AzureDevOpsIngestDoc,
     "kafka": KafkaIngestDoc,
     "local": LocalIngestDoc,
     "mongodb": MongoDBIngestDoc,

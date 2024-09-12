@@ -1,4 +1,37 @@
-## 0.15.8-dev4
+## 0.15.11
+
+### Enhancements
+
+* **Add deprecation warning to embed code**
+* **Remove ingest console script**
+
+## 0.15.10
+
+### Enhancements
+
+* **Enhance `pdfminer` element cleanup** Expand removal of `pdfminer` elements to include those inside all `non-pdfminer` elements, not just `tables`.
+* **Modified analysis drawing tools to dump to files and draw from dumps** If the parameter `analysis` of the `partition_pdf` function is set to `True`, the layout for Object Detection, Pdfminer Extraction, OCR and final layouts will be dumped as json files. The drawers now accept dict (dump) objects instead of internal classes instances.
+* **Vectorize pdfminer elements deduplication computation**. Use `numpy` operations to compute IOU and sub-region membership instead of using simply loop. This improves the speed of deduplicating elements for pages with a lot of elements.
+* **Add deprecation warning to embed code**
+
+### Features
+
+### Fixes
+
+## 0.15.9
+
+### Enhancements
+
+### Features
+
+* **Add support for encoding parameter in partition_csv**
+
+### Fixes
+
+* **Check storage contents for OLE file type detection** Updates `detect_filetype` to check the content of OLE files to more reliable differentiate DOC, PPT, XLS, and MSG files. As part of this, the `"msg"` extra was removed because the `python-oxmsg` package is now a base dependency.
+* **Fix disk space leaks and Windows errors when accessing file.name on a NamedTemporaryFile** Uses of `NamedTemporaryFile(..., delete=False)` and/or uses of `file.name` of NamedTemporaryFiles have been replaced with TemporaryFileDirectory to avoid a known issue: https://docs.python.org/3/library/tempfile.html#tempfile.NamedTemporaryFile
+
+## 0.15.8
 
 ### Enhancements
 
@@ -6,8 +39,11 @@
 
 ### Features
 
+* **Add MixedbreadAI embedder** Adds MixedbreadAI embeddings to support embedding via Mixedbread AI.
+
 ### Fixes
 
+* **Replace `pillow-heif` with `pi-heif`**. Replaces `pillow-heif` with `pi-heif` due to more permissive licensing on the wheel for `pi-heif`.
 * **Minify text_as_html from DOCX.** Previously `.metadata.text_as_html` for DOCX tables was "bloated" with whitespace and noise elements introduced by `tabulate` that produced over-chunking and lower "semantic density" of elements. Reduce HTML to minimum character count without preserving all text.
 * **Fall back to filename extension-based file-type detection for unidentified OLE files.** Resolves a problem where a DOC file that could not be detected as such by `filetype` was incorrectly identified as a MSG file.
 
